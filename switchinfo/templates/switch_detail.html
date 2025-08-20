@@ -1,0 +1,104 @@
+<h2 id="switch-name">{{ switch.name }}</h2>
+<p><b>Расположение:</b> <span id="switch-location">{{ switch.placement }}</span></p>
+<p><b>Серийный номер:</b> <span id="switch-serial">{{ switch.serialNum }}</span></p>
+<p><b>Инвентарный номер:</b> <span id="switch-inventory">{{ switch.inventoryNum }}</span></p>
+<p><b>MAC-адрес:</b> <span id="switch-mac">{{ switch.macAddr }}</span></p>
+<p><b>IP-адрес:</b> <span id="switch-ip">{{ switch.ip_address }}</span></p>
+<p><b>Количество портов:</b> <span id="switch-ports">{{ switch.ports_count }}</span></p>
+
+<form id="ports-form">
+    {% csrf_token %}
+    <input type="hidden" name="switch_id" value="{{ switch.id }}">
+    <button type="button" id="edit-btn" style="font-size: 12pt; padding: 4px 6px;background: linear-gradient(to top left, #ffffff 0%, #99ccff 100%);">✏️ Редактировать</button>
+    <button type="button" id="save-btn" style="font-size: 12pt; padding: 4px 6px; background: linear-gradient(to top left, #ffffff 0%, #99ccff 100%)" disabled>💾 Сохранить</button>
+    <a href="{% url 'export_switch_excel' switch.id %}"
+   class="btn"
+   style="font-size: 12pt; padding: 4px 6px; text-decoration:none; color: black; border:solid 1px; background: linear-gradient(to top left, #ffffff 0%, #99ccff 100%)">
+    📤 Экспорт в Excel
+</a>
+    <select id="port-filter" style="font-size: 13pt; padding: 4.5px 6px; margin-left:5px;" class="no-disable">
+        <option value="all">Все</option>
+        <option value="free">Сначала свободные</option>
+        <option value="used">Сначала занятые</option>
+    </select>
+    <table id="ports-table">
+        <thead>
+            <tr>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">№</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">Подключенное устройство</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">IP-адрес</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">Имя устройства</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">Тип порта</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">Статус</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">VLAN</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">Up Link</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);" >Доп. информация</th>
+                <th style="background: linear-gradient(to bottom, #ffffff 0%, #99ccff 100%);">Расположение</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for port in ports %}
+            <tr>
+                <td>{{ port.number }}</td>
+                <td><input type="text" name="connected_device_{{ port.id }}" value="{{ port.connected_device|default:'' }}" disabled></td>
+                <td><input type="text" name="ip_address_{{ port.id }}" value="{{ port.ip_address|default:'' }}" disabled></td>
+                <td><input type="text" name="device_name_{{ port.id }}" value="{{ port.device_name|default:'' }}" disabled></td>
+                <td>
+                    <select name="portType_{{ port.id }}" disabled>
+                        {% for value, label in port_type_choices.items %}
+                            <option value="{{ value }}" {% if port.portType == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <select name="status_{{ port.id }}" disabled>
+                        {% for value, label in status_choices.items %}
+                            <option value="{{ value }}" {% if port.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input type="text" name="vlanNum_{{ port.id }}" value="{{ port.vlanNum|default:'' }}" disabled></td>
+                <td><input type="text" name="upLink_{{ port.id }}" value="{{ port.upLink|default:'' }}" disabled></td>
+                <td><input type="text" name="addInfo_{{ port.id }}" value="{{ port.addInfo|default:'' }}" disabled></td>
+                <td><input type="text" name="cabPlacement_{{ port.id }}" value="{{ port.cabPlacement|default:'' }}" disabled></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <!-- Подключаем библиотеку SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+document.getElementById("export-btn").addEventListener("click", function () {
+    let wb = XLSX.utils.book_new();
+
+    // 1. Информация о коммутаторе
+    let switchInfo = [
+        ["Название коммутатора:", "{{ switch.name }}"],
+        ["Расположение:", "{{ switch.placement }}"],
+        ["Серийный номер:", "{{ switch.serialNum }}"],
+        ["Инвентарный номер:", "{{ switch.inventoryNum }}"],
+        ["MAC-Адрес:", "{{ switch.macAddr }}"],
+        ["IP-адрес:", "{{ switch.ip_address }}"],
+        ["Количество портов:", "{{ switch.ports_count }}"]
+    ];
+    let ws = XLSX.utils.aoa_to_sheet(switchInfo);
+
+    // 2. Пустая строка
+    XLSX.utils.sheet_add_aoa(ws, [[]], { origin: -1 });
+
+    // 3. Таблица портов
+    let table = document.getElementById("ports-table");
+    let ws_ports = XLSX.utils.table_to_sheet(table);
+
+    // 4. Объединяем таблицу портов с инфо о коммутаторе
+    XLSX.utils.sheet_add_json(ws, XLSX.utils.sheet_to_json(ws_ports, {header:1}), {origin:-1});
+
+    // 5. Добавляем лист в книгу
+    XLSX.utils.book_append_sheet(wb, ws, "Коммутатор");
+
+    // 6. Сохраняем
+    XLSX.writeFile(wb, "switch_ports.xlsx");
+});
+</script>
+</form>
