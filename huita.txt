@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+	<system.webServer>
+		<handlers>
+			<add name="DjangoViaFastCGI"
+			     path="*"
+                             verb="*"
+                             modules="FastCgiModule"
+                             scriptProcessor="C:\inetpub\wwwroot\SwitchInformationRepo\venv\Scripts\python.exe|C:\inetpub\wwwroot\SwitchInformationRepo\venv\Lib\site-packages\wfastcgi.py"
+                             resourceType="Unspecified"
+                             requireAccess="Script" />
+		</handlers>
+		
+
+		<staticContent>
+		  <remove fileExtension=".py" />
+		</staticContent>
+		
+
+		<httpErrors errorMode="Detailed" />
+		<asp scriptErrorSentToBrowser="true" />
+	</system.webServer>
+
+	
+	<appSettings>
+	  <add key="WSGI_HANDLER" value="django.core.wsgi.get_wsgi_application()" />
+  	  <add key="DJANGO_SETTINGS_MODULE" value="switchinformationcfg.settings" />
+	  <add key="PYTHONPATH" value="C:\inetpub\wwwroot\SwitchInformationRepo" />
+	  <add key="PYTHONHOME" value="C:\inetpub\wwwroot\SwitchInformationRepo\venv" />
+	</appSettings>
+</configuration>
